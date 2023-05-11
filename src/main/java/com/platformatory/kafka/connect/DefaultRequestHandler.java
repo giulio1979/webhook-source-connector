@@ -86,6 +86,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<Object> {
                             Map<String, ?> sourcePartition = new HashMap<>();
                             Map<String, ?> sourceOffset = new HashMap<>();
                             BlockingQueue<SourceRecord> queue = blockingQueueFactory.getOrCreateQueue(topic);
+                            // TODO: Determine key
                             queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, jsonObject));
                         } catch (JsonProcessingException e) {
                             log.error("Could not convert request body to JSON - ", e);

@@ -60,7 +60,6 @@ public class WebhookSourceTask extends SourceTask {
 
     log.info("Task config map {}", map);
     config = new WebhookSourceConnectorConfig(map);
-    log.info("Task config {}", config);
     pollInterval = config.getPollInterval();
     String queueNames = map.get("queue.names");
     queues = new ArrayList<>(queueNames.split(",").length);

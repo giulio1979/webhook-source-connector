@@ -62,20 +62,24 @@ public class WebhookSourceConnector extends SourceConnector {
 
   @Override
   public void start(Map<String, String> map) {
-    log.info("Connector started");
-    config = new WebhookSourceConnectorConfig(map);
-    blockingQueueFactory = new BlockingQueueFactory();
-    blockingQueueFactory.createQueue(config.getDefaultTopic());
-    // Start the QueueMonitor
-    queueMonitor = new QueueMonitor( this);
-    queueMonitor.start();
-    port = config.getPort();
-    topicHeader = config.getTopicHeader();
+    if(config==null) {
+      log.info("Connector started");
+      config = new WebhookSourceConnectorConfig(map);
+      blockingQueueFactory = new BlockingQueueFactory();
+      blockingQueueFactory.createQueue(config.getDefaultTopic());
+      // Start the QueueMonitor
+      queueMonitor = new QueueMonitor(this, map);
+      queueMonitor.start();
+      port = config.getPort();
+      topicHeader = config.getTopicHeader();
 
-    // Start the HTTP server
-    Validator validator = createValidator(config.getValidatorClass());
-    ChannelHandler handler = createHandler(validator);
-    startServer(handler);
+      // Start the HTTP server
+      Validator validator = createValidator(config.getValidatorClass());
+      ChannelHandler handler = createHandler(validator);
+      startServer(handler);
+    } else {
+      this.context().requestTaskReconfiguration();
+    }
   }
 
   @Override
