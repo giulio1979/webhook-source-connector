@@ -90,14 +90,19 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<Object> {
                             queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, jsonObject));
                         } catch (JsonProcessingException e) {
                             log.error("Could not convert request body to JSON - ", e);
+                        } finally {
+                            LastHttpContent trailer = (LastHttpContent) msg;
+                            responseData.append(RequestUtils.prepareLastResponse("Good bye!", trailer));
+                            writeResponse(ctx, ((HttpObject) trailer).decoderResult()
+                                    .isSuccess() ? OK : BAD_REQUEST, responseData);
                         }
                     } else {
-                        // TODO: Handle invalid request
+                        LastHttpContent trailer = (LastHttpContent) msg;
+                        responseData.append(RequestUtils.prepareLastResponse("Request validation failed", trailer));
+                        writeResponse(ctx, BAD_REQUEST, responseData);
                     }
                 }
-                LastHttpContent trailer = (LastHttpContent) msg;
-                responseData.append(RequestUtils.prepareLastResponse(request, trailer));
-                writeResponse(ctx, trailer, responseData);
+
             }
         }
     }
@@ -107,11 +112,10 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<Object> {
         ctx.write(response);
     }
 
-    private void writeResponse(ChannelHandlerContext ctx, LastHttpContent trailer, StringBuilder responseData) {
+    private void writeResponse(ChannelHandlerContext ctx, HttpResponseStatus responseStatus, StringBuilder responseData) {
         boolean keepAlive = HttpUtil.isKeepAlive(request);
 
-        FullHttpResponse httpResponse = new DefaultFullHttpResponse(HTTP_1_1, ((HttpObject) trailer).decoderResult()
-                .isSuccess() ? OK : BAD_REQUEST, Unpooled.copiedBuffer(responseData.toString(), CharsetUtil.UTF_8));
+        FullHttpResponse httpResponse = new DefaultFullHttpResponse(HTTP_1_1, responseStatus, Unpooled.copiedBuffer(responseData.toString(), CharsetUtil.UTF_8));
 
         httpResponse.headers()
                 .set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");

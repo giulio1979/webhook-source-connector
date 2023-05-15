@@ -12,10 +12,10 @@ import java.util.Map;
 public class WebhookSourceConnectorConfig extends AbstractConfig {
 
   public static final String DEFAULT_TOPIC_CONFIG = "topic.default";
-  private static final String DEFAULT_TOPIC_DOC = "Default topic to write to for DLQ";
+  public static final String DEFAULT_TOPIC_DOC = "Default topic to write to for DLQ";
 
   public static final String TOPIC_HEADER_CONFIG = "topic.header";
-  private static final String TOPIC_HEADER_DOC = "Header for determining the topic";
+  public static final String TOPIC_HEADER_DOC = "Header for determining the topic";
 
   public static final String PORT_CONFIG = "port";
   public static final String PORT_DOC = "Port for HTTP server";

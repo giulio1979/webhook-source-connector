@@ -68,9 +68,9 @@ class RequestUtils {
         return responseData;
     }
 
-    static StringBuilder prepareLastResponse(HttpRequest request, LastHttpContent trailer) {
+    static StringBuilder prepareLastResponse(String message, LastHttpContent trailer) {
         StringBuilder responseData = new StringBuilder();
-        responseData.append("Good Bye!\r\n");
+        responseData.append(message+"\r\n");
 
         if (!trailer.trailingHeaders()
                 .isEmpty()) {

@@ -62,6 +62,10 @@ public class WebhookSourceConnector extends SourceConnector {
 
   @Override
   public void start(Map<String, String> map) {
+    setupConnector(map);
+  }
+
+  public void setupConnector(Map<String, String> map) {
     if(config==null) {
       log.info("Connector started");
       config = new WebhookSourceConnectorConfig(map);
