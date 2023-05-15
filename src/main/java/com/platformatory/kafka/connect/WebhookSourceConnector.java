@@ -19,7 +19,6 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
 import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceConnector;
@@ -133,8 +132,15 @@ public class WebhookSourceConnector extends SourceConnector {
       return new DefaultValidator();
     } else {
       // Instantiate and configure the validator based on the provided class name
-      // ...
-      return (Validator) Utils.newInstance(config.getClass(validatorClass));
+      try {
+        return (Validator) Class.forName(validatorClass).newInstance();
+      } catch (InstantiationException e) {
+        throw new RuntimeException(e);
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      } catch (ClassNotFoundException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
   private ChannelHandler createHandler(Validator validator) {
