@@ -1,48 +1,89 @@
 # Introduction
 
-Welcome to your new Kafka Connect plugin!
+Kafka Source Connector for producing webhook data into Kafka.
 
-# Running in development
+## Features
 
+- Creates HTTP server based on netty for listening to webhook requests
+- Can validate incoming webhook requests with custom validation logic
+- Determine Kafka topic based on a configurable request header
+- Configurable DLQ if kafka topic header is not found
+- Sanitizes topic name from header by replacing illegal characters with underscores(_)
 
-The [docker-compose.yml](docker-compose.yml) that is included in this repository is based on the Confluent Platform Docker
-images. Take a look at the [quickstart](http://docs.confluent.io/current/cp-docker-images/docs/quickstart.html#getting-started-with-docker-client)
-for the Docker images. 
+## Configuration
 
-Your development workstation needs to be able to resolve the hostnames that are listed in the `docker-compose.yml` 
-file in the root of this repository. If you are using [Docker for Mac](https://docs.docker.com/v17.12/docker-for-mac/install/)
-your containers will be available at the ip address `127.0.0.1`. If you are running docker-machine
-you will need to determine the ip address of the virtual machine with `docker-machine ip confluent`
-to determine the ip address.
+| configuration | description | type | default | example |
+| --- | --- | --- | --- | --- |
+| poll.interval | Poll interval for producing messages to Kafka | long | 5000 (5s) | 5000 |
+| port | Port for starting the HTTP server for webhook requests | int | - (Required) | 8000 |
+| topic.header | Header for determining the topic | string | - (Required) | X-Topic-Name |
+| topic.default | Default topic to write to for DLQ | string | - (Required) | webhook_default |
+| validator.class | Validator Class for webhook request validation. Should be present in the classpath. The default validator returns true for all requests. For using the default validator, set the value to an empty string("") | string | - (Required) | com.platformatory.kafka.connect.ShopifyRequestValidator |
 
+### Request Validator
+
+Any custom request validator should implement the `com.platformatory.kafka.connect.Validator` interface, which has an abstract method with the following signature - 
+```java
+public boolean validate(FullHttpRequest request);
 ```
-127.0.0.1 zookeeper
-127.0.0.1 kafka
-127.0.0.1 schema-registry
-```
 
+## Development
 
-```
+- The repository contains a docker-compose file which can be used to bring up a Kafka container along with a connect worker.
+
+```bash
 docker-compose up -d
 ```
 
+> This mounts the `/WebhookSourceConnector-1.0-SNAPSHOT.jar` from the target directory to the plugin path of the connect worker
 
-The debug script assumes that `connect-standalone` is in the path on your local workstation. Download 
-the latest version of the [Kafka](https://www.confluent.io/download/) to get started.
+- Configure the connector 
 
-
-Start the connector with debugging enabled.
- 
+```bash
+curl --location --request POST 'localhost:8083/connectors/' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "name": "WebhookSourceConnector",
+    "config": {
+        "connector.class": "com.platformatory.kafka.connect.WebhookSourceConnector",
+        "tasks.max":1,
+        "topic.default":"webhook",
+        "topic.header":"X-Topic-Name",
+        "validator.class":"",
+        "port":8000
+         }
+}'
 ```
-./bin/debug.sh
+
+- Test the connector
+
+```bash
+# Using the DLQ with no X-Kafka-Topic header
+curl -X POST --header 'Content-Type: application/json' localhost:6987 --data-raw '{
+ "root": {
+  "child": "value0",
+  "arr": ["val0", "val1", "val2"]
+ }
+}'
+
+curl -X POST --header 'Content-Type: application/json' -H 'X-Topic-Name: hello/world' localhost:6987 --data-raw '{
+ "hello": "world"
+}'
 ```
 
-Start the connector with debugging enabled. This will wait for a debugger to attach.
+- Verify kafka messages
 
+```bash
+docker exec -it kafka-broker bash
+[appuser@kafka ~] kafka-topics --bootstrap-server localhost:9092 --list
+[appuser@kafka ~] kafka-console-consumer --bootstrap-server localhost:9092 --from-beginning --property print.key=true --topic webhook
+[appuser@kafka ~] kafka-console-consumer --bootstrap-server localhost:9092 --from-beginning --property print.key=true --topic hello_world
 ```
-export SUSPEND='y'
-./bin/debug.sh
+
+> For development, can changes can be reloaded with
+```bash
+mvn clean package && \
+sleep 5 && \
+docker-compose up -d --force-recreate kafka-connect && \
+docker logs kafka-connect -f
 ```
-
-
-> topic header value in the webhook request should not contain comma
