@@ -15,10 +15,14 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @ChannelHandler.Sharable
 public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
     private static final Logger log = LoggerFactory.getLogger(DefaultRequestHandler.class);
+
+    private static final String VALID_TOPIC_NAME_REGEX = "[^a-z0-9\\._\\-]+";
     private final ObjectMapper mapper = new ObjectMapper();
     private StringBuilder requestBodyBuilder = new StringBuilder();
 
@@ -209,7 +213,10 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
 
     private String extractQueueName(HttpRequest request) {
         HttpHeaders headers = request.headers();
-        // TODO: Sanitize queue name to exclude commas
-        return headers.get(dispatcherKey);
+        String queueName = headers.get(dispatcherKey);
+        Pattern pattern = Pattern.compile(VALID_TOPIC_NAME_REGEX);
+        Matcher matcher = pattern.matcher(queueName);
+
+        return matcher.replaceAll("_");
     }
 }
