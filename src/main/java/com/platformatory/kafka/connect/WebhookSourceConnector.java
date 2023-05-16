@@ -87,7 +87,6 @@ public class WebhookSourceConnector extends SourceConnector {
 
   @Override
   public Class<? extends Task> taskClass() {
-    //TODO: Return your task implementation.
     return WebhookSourceTask.class;
   }
 
@@ -118,8 +117,7 @@ public class WebhookSourceConnector extends SourceConnector {
 
   @Override
   public void stop() {
-    bossGroup.shutdownGracefully();
-    workerGroup.shutdownGracefully();
+    stopServer();
   }
 
   @Override
@@ -174,6 +172,11 @@ public class WebhookSourceConnector extends SourceConnector {
     } catch (Exception e) {
       throw new ConnectException("Failed to start HTTP server", e);
     }
+  }
+
+  public void stopServer() {
+    bossGroup.shutdownGracefully();
+    workerGroup.shutdownGracefully();
   }
 
 //  private class RequestHandler extends SimpleChannelInboundHandler<Object> {
