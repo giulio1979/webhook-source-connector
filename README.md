@@ -44,6 +44,7 @@ docker-compose up -d
 - Configure the connector 
 
 ```bash
+# With key.header
 curl --location --request POST 'localhost:8083/connectors/' \
 --header 'Content-Type: application/json' \
 --data-raw '{
@@ -54,6 +55,22 @@ curl --location --request POST 'localhost:8083/connectors/' \
         "topic.default":"webhook",
         "topic.header":"X-Topic-Name",
         "key.header": "X-Key-Name",
+        "validator.class":"",
+        "port":8000
+         }
+}'
+
+# With key.json.path
+curl --location --request POST 'localhost:8083/connectors/' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "name": "WebhookSourceConnector",
+    "config": {
+        "connector.class": "com.platformatory.kafka.connect.WebhookSourceConnector",
+        "tasks.max":1,
+        "topic.default":"webhook",
+        "topic.header":"X-Topic-Name",
+        "key.json.path": "$.root.child.arr[2]",
         "validator.class":"",
         "port":8000
          }
