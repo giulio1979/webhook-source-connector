@@ -65,13 +65,12 @@ public class WebhookSourceConnector extends SourceConnector {
   }
 
   public void setupConnector(Map<String, String> map) {
-    if(config==null) {
       log.info("Connector started");
       config = new WebhookSourceConnectorConfig(map);
       blockingQueueFactory = new BlockingQueueFactory();
       blockingQueueFactory.createQueue(config.getDefaultTopic());
       // Start the QueueMonitor
-      queueMonitor = new QueueMonitor(this, map);
+      queueMonitor = new QueueMonitor(this);
       queueMonitor.start();
       port = config.getPort();
       topicHeader = config.getTopicHeader();
@@ -80,9 +79,10 @@ public class WebhookSourceConnector extends SourceConnector {
       Validator validator = createValidator(config.getValidatorClass());
       ChannelHandler handler = createHandler(validator);
       startServer(handler);
-    } else {
-      this.context().requestTaskReconfiguration();
-    }
+  }
+
+  public void requestTaskReconfiguration() {
+    this.context().requestTaskReconfiguration();
   }
 
   @Override
@@ -176,6 +176,7 @@ public class WebhookSourceConnector extends SourceConnector {
   }
 
   public void stopServer() {
+    log.info("Stopping netty server");
     bossGroup.shutdownGracefully();
     workerGroup.shutdownGracefully();
   }

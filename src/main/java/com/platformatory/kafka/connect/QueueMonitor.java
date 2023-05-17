@@ -13,16 +13,14 @@ public class QueueMonitor {
 
     static final Logger log = LoggerFactory.getLogger(QueueMonitor.class);
     private final BlockingQueueFactory queueFactory;
-    private final SourceConnector connector;
-    private final Map<String, String> connectorConfig;
+    private final WebhookSourceConnector connector;
 
     private List<String> currentQueues;
 
-    public QueueMonitor(SourceConnector connector, Map<String, String> connectorConfig) {
+    public QueueMonitor(WebhookSourceConnector connector) {
         this.queueFactory = WebhookSourceConnector.blockingQueueFactory;
         this.connector = connector;
         this.currentQueues = queueFactory.getAllQueues();
-        this.connectorConfig = connectorConfig;
     }
 
     public void start() {
@@ -42,7 +40,7 @@ public class QueueMonitor {
             // Queue changes detected, trigger task reconfiguration
             currentQueues = newQueues;
             log.info("Queue changes detected, triggering task reconfiguration");
-            connector.reconfigure(connectorConfig);
+            connector.requestTaskReconfiguration();
         }
     }
 
