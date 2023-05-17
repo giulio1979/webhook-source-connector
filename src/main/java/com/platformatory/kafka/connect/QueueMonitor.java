@@ -14,7 +14,7 @@ public class QueueMonitor {
     static final Logger log = LoggerFactory.getLogger(QueueMonitor.class);
     private final BlockingQueueFactory queueFactory;
     private final WebhookSourceConnector connector;
-
+    private Timer timer;
     private List<String> currentQueues;
 
     public QueueMonitor(WebhookSourceConnector connector) {
@@ -25,12 +25,12 @@ public class QueueMonitor {
 
     public void start() {
         // Schedule the monitor task to run periodically
-        Timer timer = new Timer(true);
+        timer = new Timer(true);
         timer.schedule(new MonitorTask(), 0, 5000); // Adjust the interval as needed
     }
 
     public void stop() {
-        // TODO: Stop timer
+        timer.cancel();
     }
 
     private void checkQueueChanges() {

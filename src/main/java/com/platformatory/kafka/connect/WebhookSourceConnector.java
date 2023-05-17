@@ -143,6 +143,7 @@ public class WebhookSourceConnector extends SourceConnector {
   }
   @Override
   public void stop() {
+    queueMonitor.stop();
     stopServer();
   }
 
