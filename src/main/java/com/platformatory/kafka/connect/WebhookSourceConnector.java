@@ -51,6 +51,7 @@ public class WebhookSourceConnector extends SourceConnector {
   public static BlockingQueueFactory blockingQueueFactory;
   private int port;
   private String topicHeader;
+  private String keyHeader;
 
   private EventLoopGroup bossGroup;
   private EventLoopGroup workerGroup;
@@ -74,6 +75,7 @@ public class WebhookSourceConnector extends SourceConnector {
       queueMonitor.start();
       port = config.getPort();
       topicHeader = config.getTopicHeader();
+      keyHeader = config.getKeyHeader();
 
       // Start the HTTP server
       Validator validator = createValidator(config.getValidatorClass());
@@ -115,6 +117,8 @@ public class WebhookSourceConnector extends SourceConnector {
     return taskConfigs;
   }
 
+  //TODO: Validate configuration to see if it is not empty (headers, default topic, poll interval >0)
+
   @Override
   public void stop() {
     stopServer();
@@ -141,8 +145,8 @@ public class WebhookSourceConnector extends SourceConnector {
       }
     }
   }
-  private ChannelHandler createHandler(Validator validator) {
-    return new DefaultRequestHandler(validator, blockingQueueFactory, topicHeader, config.getDefaultTopic());
+  public ChannelHandler createHandler(Validator validator) {
+    return new DefaultRequestHandler(validator, blockingQueueFactory, topicHeader, config.getDefaultTopic(), keyHeader);
   }
 
   private void startServer(ChannelHandler handler) {

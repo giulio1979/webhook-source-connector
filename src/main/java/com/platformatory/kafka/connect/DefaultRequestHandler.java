@@ -33,6 +33,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
     private final BlockingQueueFactory blockingQueueFactory;
     private final String dispatcherKey;
     private final String defaultTopic;
+    private final String keyHeader;
     StringBuilder responseData = new StringBuilder();
 
     @Override
@@ -150,7 +151,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
                 Map<String, ?> sourceOffset = new HashMap<>();
                 BlockingQueue<SourceRecord> queue = blockingQueueFactory.getOrCreateQueue(topic);
                 // TODO: Determine key
-                queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, jsonObject));
+                queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, determineKey(request), null, jsonObject));
             } catch (JsonProcessingException e) {
                 log.error("Could not convert request body to JSON - ", e);
             } finally {
@@ -200,11 +201,12 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
     }
 
 
-    public DefaultRequestHandler(Validator validator, BlockingQueueFactory blockingQueueFactory, String dispatcherKey, String defaultTopic) {
+    public DefaultRequestHandler(Validator validator, BlockingQueueFactory blockingQueueFactory, String dispatcherKey, String defaultTopic, String keyHeader) {
         this.validator = validator;
         this.blockingQueueFactory = blockingQueueFactory;
         this.dispatcherKey = dispatcherKey;
         this.defaultTopic = defaultTopic;
+        this.keyHeader = keyHeader;
     }
     private boolean validateRequest(FullHttpRequest request) {
         // Perform request validation using the configured validator
@@ -214,9 +216,17 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
     private String extractQueueName(HttpRequest request) {
         HttpHeaders headers = request.headers();
         String queueName = headers.get(dispatcherKey);
+        if(queueName == null || queueName.length() == 0) {
+            return queueName;
+        }
         Pattern pattern = Pattern.compile(VALID_TOPIC_NAME_REGEX);
         Matcher matcher = pattern.matcher(queueName);
 
         return matcher.replaceAll("_");
+    }
+
+    public String determineKey(FullHttpRequest request) {
+        // TODO: Support key extraction from a JSON path
+        return request.headers().get(keyHeader);
     }
 }
