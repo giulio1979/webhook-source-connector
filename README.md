@@ -8,6 +8,7 @@ Kafka Source Connector for producing webhook data into Kafka.
 - Can validate incoming webhook requests with custom validation logic
 - Determine Kafka topic based on a configurable request header
 - Determine Kafka key based on a configurable request header
+- Determine Kafka key based on a configurable JSON path in the request body
 - Configurable DLQ if kafka topic header is not found
 - Sanitizes topic name from header by replacing illegal characters with underscores(_)
 
@@ -18,9 +19,10 @@ Kafka Source Connector for producing webhook data into Kafka.
 | poll.interval | Poll interval for producing messages to Kafka | long | 5000 (5s) | 5000 |
 | port | Port for starting the HTTP server for webhook requests | int | - (Required) | 8000 |
 | topic.header | Header for determining the topic | string | - (Required) | X-Topic-Name |
-| key.header | Header for determining the key | string | - (Required) | X-Key-Name |
+| key.header | Header for determining the key | string | - | X-Key-Name |
+| key.json.path | Path in the response JSON for determining the key. Should follow the JsonPath format. See [here](https://github.com/json-path/JsonPath#path-examples) for examples. If both `key.header` and `key.json.path` are defined, `key.json.path` takes precedence. | string | - | $.id.value |
 | topic.default | Default topic to write to for DLQ | string | - (Required) | webhook_default |
-| validator.class | Validator Class for webhook request validation. Should be present in the classpath. The default validator returns true for all requests. For using the default validator, set the value to an empty string("") | string | - (Required) | com.platformatory.kafka.connect.ShopifyRequestValidator |
+| validator.class | Validator Class for webhook request validation. Should be present in the classpath. The default validator returns true for all requests. For using the default validator, set the value to an empty string("") | string | - (Required) | com.platformatory.ShopifyRequestValidator |
 
 ### Request Validator
 

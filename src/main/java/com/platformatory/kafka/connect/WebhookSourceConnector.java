@@ -53,6 +53,7 @@ public class WebhookSourceConnector extends SourceConnector {
   private int port;
   private String topicHeader;
   private String keyHeader;
+  private String keyJSONPath;
 
   private EventLoopGroup bossGroup;
   private EventLoopGroup workerGroup;
@@ -77,6 +78,7 @@ public class WebhookSourceConnector extends SourceConnector {
       port = config.getPort();
       topicHeader = config.getTopicHeader();
       keyHeader = config.getKeyHeader();
+      keyJSONPath = config.getKeyJSONPath();
 
       // Start the HTTP server
       Validator validator = createValidator(config.getValidatorClass());
@@ -123,9 +125,11 @@ public class WebhookSourceConnector extends SourceConnector {
     log.info("validate config - {}", connectorConfigs);
     Config validatedConfig=super.validate(connectorConfigs);
     // Additional validation for custom properties
-    int pollInterval = Integer.parseInt(connectorConfigs.get(WebhookSourceConnectorConfig.POLL_INTERVAL_CONFIG));
-    if (pollInterval < 1) {
-      throw new IllegalArgumentException("Poll interval must be a positive integer");
+    if(connectorConfigs.containsKey(WebhookSourceConnectorConfig.POLL_INTERVAL_CONFIG)) {
+      long pollInterval = Long.parseLong(connectorConfigs.get(WebhookSourceConnectorConfig.POLL_INTERVAL_CONFIG));
+      if (pollInterval < 1) {
+        throw new IllegalArgumentException("Poll interval must be a positive long number");
+      }
     }
     String topicHeader = connectorConfigs.get(WebhookSourceConnectorConfig.TOPIC_HEADER_CONFIG);
     if(topicHeader.trim().length() == 0) {
@@ -134,10 +138,6 @@ public class WebhookSourceConnector extends SourceConnector {
     String defaultTopic = connectorConfigs.get(WebhookSourceConnectorConfig.DEFAULT_TOPIC_CONFIG);
     if(defaultTopic.trim().length() == 0) {
       throw new IllegalArgumentException("Default topic must be a non-empty string");
-    }
-    String keyHeader = connectorConfigs.get(WebhookSourceConnectorConfig.KEY_HEADER_CONFIG);
-    if(keyHeader.trim().length() == 0) {
-      throw new IllegalArgumentException("Key header must be a non-empty string");
     }
     return validatedConfig;
   }
@@ -168,7 +168,7 @@ public class WebhookSourceConnector extends SourceConnector {
     }
   }
   public ChannelHandler createHandler(Validator validator) {
-    return new DefaultRequestHandler(validator, blockingQueueFactory, topicHeader, config.getDefaultTopic(), keyHeader);
+    return new DefaultRequestHandler(validator, blockingQueueFactory, topicHeader, config.getDefaultTopic(), keyHeader, keyJSONPath);
   }
 
   private void startServer(ChannelHandler handler) {

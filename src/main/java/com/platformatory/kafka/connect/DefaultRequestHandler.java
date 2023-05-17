@@ -2,6 +2,8 @@ package com.platformatory.kafka.connect;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -12,6 +14,7 @@ import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -34,6 +37,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
     private final String dispatcherKey;
     private final String defaultTopic;
     private final String keyHeader;
+    private final String keyJSONPath;
     StringBuilder responseData = new StringBuilder();
 
     @Override
@@ -199,12 +203,13 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
     }
 
 
-    public DefaultRequestHandler(Validator validator, BlockingQueueFactory blockingQueueFactory, String dispatcherKey, String defaultTopic, String keyHeader) {
+    public DefaultRequestHandler(Validator validator, BlockingQueueFactory blockingQueueFactory, String dispatcherKey, String defaultTopic, String keyHeader, String keyJSONPath) {
         this.validator = validator;
         this.blockingQueueFactory = blockingQueueFactory;
         this.dispatcherKey = dispatcherKey;
         this.defaultTopic = defaultTopic;
         this.keyHeader = keyHeader;
+        this.keyJSONPath = keyJSONPath;
     }
     private boolean validateRequest(FullHttpRequest request) {
         // Perform request validation using the configured validator
@@ -223,8 +228,15 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
         return matcher.replaceAll("_");
     }
 
-    public String determineKey(FullHttpRequest request) {
-        // TODO: Support key extraction from a JSON path
-        return request.headers().get(keyHeader);
+    public Object determineKey(FullHttpRequest request) {
+        if (keyJSONPath != null && !keyJSONPath.isEmpty()) {
+            String requestBodyJSONString = request.content().toString(StandardCharsets.UTF_8);
+            try {
+                return JsonPath.read(requestBodyJSONString, keyJSONPath);
+            } catch (PathNotFoundException e) {
+                return null;
+            }
+        }
+        return keyHeader == null ? null : request.headers().get(keyHeader);
     }
 }
