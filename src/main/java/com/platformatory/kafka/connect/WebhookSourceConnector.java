@@ -18,6 +18,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
+import org.apache.kafka.common.config.Config;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.errors.ConnectException;
@@ -117,8 +118,29 @@ public class WebhookSourceConnector extends SourceConnector {
     return taskConfigs;
   }
 
-  //TODO: Validate configuration to see if it is not empty (headers, default topic, poll interval >0)
-
+  @Override
+  public Config validate(final Map<String,String> connectorConfigs) {
+    log.info("validate config - {}", connectorConfigs);
+    Config validatedConfig=super.validate(connectorConfigs);
+    // Additional validation for custom properties
+    int pollInterval = Integer.parseInt(connectorConfigs.get(WebhookSourceConnectorConfig.POLL_INTERVAL_CONFIG));
+    if (pollInterval < 1) {
+      throw new IllegalArgumentException("Poll interval must be a positive integer");
+    }
+    String topicHeader = connectorConfigs.get(WebhookSourceConnectorConfig.TOPIC_HEADER_CONFIG);
+    if(topicHeader.trim().length() == 0) {
+      throw new IllegalArgumentException("Topic header must be a non-empty string");
+    }
+    String defaultTopic = connectorConfigs.get(WebhookSourceConnectorConfig.DEFAULT_TOPIC_CONFIG);
+    if(defaultTopic.trim().length() == 0) {
+      throw new IllegalArgumentException("Default topic must be a non-empty string");
+    }
+    String keyHeader = connectorConfigs.get(WebhookSourceConnectorConfig.KEY_HEADER_CONFIG);
+    if(keyHeader.trim().length() == 0) {
+      throw new IllegalArgumentException("Key header must be a non-empty string");
+    }
+    return validatedConfig;
+  }
   @Override
   public void stop() {
     stopServer();
