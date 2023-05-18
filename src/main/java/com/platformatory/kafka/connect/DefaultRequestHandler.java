@@ -15,9 +15,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.AbstractMap;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,6 +42,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
     private final String defaultTopic;
     private final String keyHeader;
     private final String keyJSONPath;
+    private Map<String, Function<FullHttpRequest, Map.Entry<HttpResponseStatus, String>>> routes;
     StringBuilder responseData = new StringBuilder();
 
     @Override
@@ -141,30 +146,14 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
-        topic = extractQueueName(request);
-        topic = topic == null ? defaultTopic : topic;
-        // Process the incoming request
-        String requestBody = request.content().toString(CharsetUtil.UTF_8);
-        log.info("Received request body: " + requestBody);
-        if (validateRequest(request)) {
-            Object jsonObject = null;
-            try {
-                jsonObject = mapper.readValue(requestBody, Object.class);
-                Map<String, ?> sourcePartition = new HashMap<>();
-                Map<String, ?> sourceOffset = new HashMap<>();
-                BlockingQueue<SourceRecord> queue = blockingQueueFactory.getOrCreateQueue(topic);
-                queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, determineKey(request), null, jsonObject));
-            } catch (JsonProcessingException e) {
-                log.error("Could not convert request body to JSON - ", e);
-            } finally {
-                // Send a response
-                String responseBody = "Good Bye!";
-                sendHttpResponse(ctx, request, HttpResponseStatus.OK, responseBody);
-            }
+        String uri = request.uri();
+        Function<FullHttpRequest, Map.Entry<HttpResponseStatus, String>> handler = routes.get(uri);
+        if (handler != null) {
+            Map.Entry<HttpResponseStatus, String> responseContent = handler.apply(request);
+            sendHttpResponse(ctx, request, responseContent.getKey(), responseContent.getValue());
         } else {
-            String responseBody = "Request validation failed";
-            sendHttpResponse(ctx, request, HttpResponseStatus.BAD_REQUEST, responseBody);
-    }
+            sendHttpResponse(ctx, request, HttpResponseStatus.NOT_FOUND, "404 - Not Found");
+        }
     }
 
     private void sendHttpResponse(ChannelHandlerContext ctx, FullHttpRequest request, HttpResponseStatus status,
@@ -202,6 +191,52 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
         ctx.close();
     }
 
+    private Map.Entry<HttpResponseStatus, String> handleHealthCheckRequest(FullHttpRequest request) {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        Date now = new Date();
+        String strDate = sdf.format(now);
+        return new AbstractMap.SimpleImmutableEntry <>(
+                HttpResponseStatus.OK,
+                "Healthy at " + strDate
+        );
+    }
+
+    private Map.Entry<HttpResponseStatus, String> handleWebhookRequest(FullHttpRequest request) {
+        topic = extractQueueName(request);
+        topic = topic == null ? defaultTopic : topic;
+        // Process the incoming request
+        String requestBody = request.content().toString(CharsetUtil.UTF_8);
+        log.info("Received request body: " + requestBody);
+        if (validateRequest(request)) {
+            Object jsonObject = null;
+            try {
+                jsonObject = mapper.readValue(requestBody, Object.class);
+                Map<String, ?> sourcePartition = new HashMap<>();
+                Map<String, ?> sourceOffset = new HashMap<>();
+                BlockingQueue<SourceRecord> queue = blockingQueueFactory.getOrCreateQueue(topic);
+                queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, determineKey(request), null, jsonObject));
+                return new AbstractMap.SimpleImmutableEntry <>(
+                        HttpResponseStatus.OK,
+                        "Good Bye!"
+                );
+            } catch (JsonProcessingException e) {
+                log.error("Could not convert request body to JSON - ", e);
+                return new AbstractMap.SimpleImmutableEntry <>(
+                        HttpResponseStatus.BAD_REQUEST,
+                        "Could not convert request body to JSON"
+                );
+            }
+        } else {
+            String responseBody = "";
+            return new AbstractMap.SimpleImmutableEntry <>(
+                    HttpResponseStatus.BAD_REQUEST,
+                    "Request validation failed"
+            );
+        }
+    }
+
+
+
 
     public DefaultRequestHandler(Validator validator, BlockingQueueFactory blockingQueueFactory, String dispatcherKey, String defaultTopic, String keyHeader, String keyJSONPath) {
         this.validator = validator;
@@ -210,6 +245,9 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
         this.defaultTopic = defaultTopic;
         this.keyHeader = keyHeader;
         this.keyJSONPath = keyJSONPath;
+        this.routes = new HashMap<>();
+        this.routes.put("/", this::handleWebhookRequest);
+        this.routes.put("/health", this::handleHealthCheckRequest);
     }
     private boolean validateRequest(FullHttpRequest request) {
         // Perform request validation using the configured validator

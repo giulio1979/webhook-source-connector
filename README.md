@@ -10,6 +10,7 @@ Kafka Source Connector for producing webhook data into Kafka.
 - Determine Kafka key based on a configurable request header
 - Determine Kafka key based on a configurable JSON path in the request body
 - Configurable DLQ if kafka topic header is not found
+- Health check for checking if the netty HTTP server is up (/health)
 - Sanitizes topic name from header by replacing illegal characters with underscores(_)
 
 ## Configuration
