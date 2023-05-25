@@ -1,15 +1,19 @@
 package com.platformatory.kafka.connect;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.PathNotFoundException;
+import com.saasquatch.jsonschemainferrer.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
 import io.netty.util.CharsetUtil;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +28,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static com.platformatory.kafka.connect.utils.SchemaUtil.convertJsonSchemaToKafkaConnectSchema;
+import static com.platformatory.kafka.connect.utils.SchemaUtil.convertJsonToKafkaConnectStruct;
 
 @ChannelHandler.Sharable
 public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
@@ -208,13 +215,26 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
         String requestBody = request.content().toString(CharsetUtil.UTF_8);
         log.info("Received request body: " + requestBody);
         if (validateRequest(request)) {
-            Object jsonObject = null;
+            final JsonSchemaInferrer inferrer = JsonSchemaInferrer.newBuilder()
+                    .setSpecVersion(SpecVersion.DRAFT_06)
+                    // Requires commons-validator
+                    .addFormatInferrers(FormatInferrers.email(), FormatInferrers.ip(),
+                            FormatInferrers.dateTime())
+                    .setAdditionalPropertiesPolicy(AdditionalPropertiesPolicies.notAllowed())
+                    .setRequiredPolicy(RequiredPolicies.nonNullCommonFields())
+                    .addEnumExtractors(EnumExtractors.validEnum(java.time.Month.class),
+                            EnumExtractors.validEnum(java.time.DayOfWeek.class))
+                    .build();
+            JsonNode jsonObject;
             try {
-                jsonObject = mapper.readValue(requestBody, Object.class);
+                jsonObject = mapper.readTree(requestBody);
+                Schema outputSchema = convertJsonSchemaToKafkaConnectSchema(inferrer.inferForSample(jsonObject));
+                log.info("Schema - {}", outputSchema.schema().toString());
+                Struct outputStruct = convertJsonToKafkaConnectStruct(jsonObject, outputSchema);
                 Map<String, ?> sourcePartition = new HashMap<>();
                 Map<String, ?> sourceOffset = new HashMap<>();
                 BlockingQueue<SourceRecord> queue = blockingQueueFactory.getOrCreateQueue(topic);
-                queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, determineKey(request), null, jsonObject));
+                queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, determineKey(request), outputSchema, outputStruct));
                 return new AbstractMap.SimpleImmutableEntry <>(
                         HttpResponseStatus.OK,
                         "Good Bye!"

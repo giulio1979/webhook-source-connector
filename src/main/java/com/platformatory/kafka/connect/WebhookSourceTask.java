@@ -89,7 +89,7 @@ public class WebhookSourceTask extends SourceTask {
       }
       return records;
     } else {
-      log.trace("Connector task: Pausing for poll interval");
+//      log.trace("Connector task: Pausing for poll interval");
       return new ArrayList<>();
     }
   }
