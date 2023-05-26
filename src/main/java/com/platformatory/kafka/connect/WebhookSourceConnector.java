@@ -54,6 +54,7 @@ public class WebhookSourceConnector extends SourceConnector {
   private String topicHeader;
   private String keyHeader;
   private String keyJSONPath;
+  private boolean inferSchema;
 
   private EventLoopGroup bossGroup;
   private EventLoopGroup workerGroup;
@@ -79,6 +80,7 @@ public class WebhookSourceConnector extends SourceConnector {
       topicHeader = config.getTopicHeader();
       keyHeader = config.getKeyHeader();
       keyJSONPath = config.getKeyJSONPath();
+      inferSchema = config.getSchemaInfer();
 
       // Start the HTTP server
       Validator validator = createValidator(config.getValidatorClass());
@@ -169,7 +171,7 @@ public class WebhookSourceConnector extends SourceConnector {
     }
   }
   public ChannelHandler createHandler(Validator validator) {
-    return new DefaultRequestHandler(validator, blockingQueueFactory, topicHeader, config.getDefaultTopic(), keyHeader, keyJSONPath);
+    return new DefaultRequestHandler(validator, blockingQueueFactory, topicHeader, config.getDefaultTopic(), keyHeader, keyJSONPath, inferSchema);
   }
 
   private void startServer(ChannelHandler handler) {

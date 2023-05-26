@@ -22,6 +22,10 @@ public class WebhookSourceConnectorConfig extends AbstractConfig {
   public static final String KEY_JSON_PATH_CONFIG = "key.json.path";
   public static final String KEY_JSON_PATH_DOC = "Path in the response JSON for determining the key";
 
+  public static final String SCHEMA_INFER_CONFIG = "schema.infer";
+  public static final String SCHEMA_INFER_DOC = "Flag for dynamically inferring JSON schema";
+  public static final Boolean SCHEMA_INFER_DEFAULT = false;
+
   public static final String PORT_CONFIG = "port";
   public static final String PORT_DOC = "Port for HTTP server";
 
@@ -42,6 +46,7 @@ public class WebhookSourceConnectorConfig extends AbstractConfig {
             .define(TOPIC_HEADER_CONFIG, Type.STRING, Importance.HIGH, TOPIC_HEADER_DOC)
             .define(KEY_HEADER_CONFIG, Type.STRING, null, Importance.HIGH, KEY_HEADER_DOC)
             .define(KEY_JSON_PATH_CONFIG, Type.STRING, null, Importance.HIGH, KEY_JSON_PATH_DOC)
+            .define(SCHEMA_INFER_CONFIG, Type.BOOLEAN, SCHEMA_INFER_DEFAULT, Importance.HIGH, SCHEMA_INFER_DOC)
             .define(PORT_CONFIG, Type.INT, Importance.HIGH, PORT_DOC)
             .define(VALIDATOR_CLASS_CONFIG, Type.STRING, Importance.LOW, VALIDATOR_CLASS_DOC)
             .define(POLL_INTERVAL_CONFIG, Type.LONG, POLL_INTERVAL_DEFAULT, Importance.HIGH, POLL_INTERVAL_DOC);
@@ -63,6 +68,9 @@ public class WebhookSourceConnectorConfig extends AbstractConfig {
     return this.getString(KEY_JSON_PATH_CONFIG);
   }
 
+  public boolean getSchemaInfer() {
+    return this.getBoolean(SCHEMA_INFER_CONFIG);
+  }
   public int getPort() {
     return this.getInt(PORT_CONFIG);
   }

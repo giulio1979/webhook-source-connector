@@ -9,6 +9,7 @@ Kafka Source Connector for producing webhook data into Kafka.
 - Determine Kafka topic based on a configurable request header
 - Determine Kafka key based on a configurable request header
 - Determine Kafka key based on a configurable JSON path in the request body
+- Infer schema dynamically for the JSON body and produce in Avro format
 - Configurable DLQ if kafka topic header is not found
 - Health check for checking if the netty HTTP server is up (/health)
 - Sanitizes topic name from header by replacing illegal characters with underscores(_)
@@ -22,6 +23,7 @@ Kafka Source Connector for producing webhook data into Kafka.
 | topic.header | Header for determining the topic | string | - (Required) | X-Topic-Name |
 | key.header | Header for determining the key | string | - | X-Key-Name |
 | key.json.path | Path in the response JSON for determining the key. Should follow the JsonPath format. See [here](https://github.com/json-path/JsonPath#path-examples) for examples. If both `key.header` and `key.json.path` are defined, `key.json.path` takes precedence. | string | - | $.id.value |
+| schema.infer | Flag for dynamically inferring JSON schema, enablind usage of Avro converter for value | boolean | false | true/false |
 | topic.default | Default topic to write to for DLQ | string | - (Required) | webhook_default |
 | validator.class | Validator Class for webhook request validation. Should be present in the classpath. The default validator returns true for all requests. For using the default validator, set the value to an empty string("") | string | - (Required) | com.platformatory.ShopifyRequestValidator |
 
@@ -61,7 +63,7 @@ curl --location --request POST 'localhost:8083/connectors/' \
          }
 }'
 
-# With key.json.path
+# With key.json.path and schema inference
 curl --location --request POST 'localhost:8083/connectors/' \
 --header 'Content-Type: application/json' \
 --data-raw '{
@@ -72,6 +74,7 @@ curl --location --request POST 'localhost:8083/connectors/' \
         "topic.default":"webhook",
         "topic.header":"X-Topic-Name",
         "key.json.path": "$.root.child.arr[2]",
+        "schema.infer": true,
         "validator.class":"",
         "port":8000
          }
