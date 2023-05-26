@@ -52,6 +52,7 @@ public class WebhookSourceConnector extends SourceConnector {
   public static BlockingQueueFactory blockingQueueFactory;
   private int port;
   private String topicHeader;
+  private String topicPrefix;
   private String keyHeader;
   private String keyJSONPath;
   private boolean inferSchema;
@@ -78,6 +79,7 @@ public class WebhookSourceConnector extends SourceConnector {
       queueMonitor.start();
       port = config.getPort();
       topicHeader = config.getTopicHeader();
+      topicPrefix = config.getTopicPrefix();
       keyHeader = config.getKeyHeader();
       keyJSONPath = config.getKeyJSONPath();
       inferSchema = config.getSchemaInfer();
@@ -137,6 +139,7 @@ public class WebhookSourceConnector extends SourceConnector {
     if(topicHeader.trim().length() == 0) {
       throw new IllegalArgumentException("Topic header must be a non-empty string");
     }
+    // TODO: Validate invalid characters in topic prefix and default topic
     String defaultTopic = connectorConfigs.get(WebhookSourceConnectorConfig.DEFAULT_TOPIC_CONFIG);
     if(defaultTopic.trim().length() == 0) {
       throw new IllegalArgumentException("Default topic must be a non-empty string");
@@ -171,7 +174,7 @@ public class WebhookSourceConnector extends SourceConnector {
     }
   }
   public ChannelHandler createHandler(Validator validator) {
-    return new DefaultRequestHandler(validator, blockingQueueFactory, topicHeader, config.getDefaultTopic(), keyHeader, keyJSONPath, inferSchema);
+    return new DefaultRequestHandler(validator, blockingQueueFactory, topicHeader, topicPrefix, config.getDefaultTopic(), keyHeader, keyJSONPath, inferSchema);
   }
 
   private void startServer(ChannelHandler handler) {

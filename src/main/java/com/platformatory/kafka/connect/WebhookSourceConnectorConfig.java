@@ -16,6 +16,9 @@ public class WebhookSourceConnectorConfig extends AbstractConfig {
 
   public static final String TOPIC_HEADER_CONFIG = "topic.header";
   public static final String TOPIC_HEADER_DOC = "Header for determining the topic";
+  public static final String TOPIC_PREFIX_CONFIG = "topic.prefix";
+  public static final String TOPIC_PREFIX_DOC = "Prefix for the topic";
+  public static final String TOPIC_PREFIX_DEFAULT = "";
 
   public static final String KEY_HEADER_CONFIG = "key.header";
   public static final String KEY_HEADER_DOC = "Header for determining the key";
@@ -44,6 +47,7 @@ public class WebhookSourceConnectorConfig extends AbstractConfig {
     return new ConfigDef()
             .define(DEFAULT_TOPIC_CONFIG, Type.STRING, Importance.HIGH, DEFAULT_TOPIC_DOC)
             .define(TOPIC_HEADER_CONFIG, Type.STRING, Importance.HIGH, TOPIC_HEADER_DOC)
+            .define(TOPIC_PREFIX_CONFIG, Type.STRING, TOPIC_PREFIX_DEFAULT, Importance.LOW, TOPIC_PREFIX_DOC)
             .define(KEY_HEADER_CONFIG, Type.STRING, null, Importance.HIGH, KEY_HEADER_DOC)
             .define(KEY_JSON_PATH_CONFIG, Type.STRING, null, Importance.HIGH, KEY_JSON_PATH_DOC)
             .define(SCHEMA_INFER_CONFIG, Type.BOOLEAN, SCHEMA_INFER_DEFAULT, Importance.HIGH, SCHEMA_INFER_DOC)
@@ -58,6 +62,10 @@ public class WebhookSourceConnectorConfig extends AbstractConfig {
 
   public String getTopicHeader() {
     return this.getString(TOPIC_HEADER_CONFIG);
+  }
+
+  public String getTopicPrefix() {
+    return this.getString(TOPIC_PREFIX_CONFIG);
   }
 
   public String getKeyHeader() {

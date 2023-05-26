@@ -46,6 +46,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
     private final Validator validator;
     private final BlockingQueueFactory blockingQueueFactory;
     private final String dispatcherKey;
+    private final String topicPrefix;
     private final String defaultTopic;
     private final String keyHeader;
     private final String keyJSONPath;
@@ -211,7 +212,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
 
     private Map.Entry<HttpResponseStatus, String> handleWebhookRequest(FullHttpRequest request) {
         topic = extractQueueName(request);
-        topic = topic == null ? defaultTopic : topic;
+        topic = topic == null ? topicPrefix + defaultTopic : topic;
         // Process the incoming request
         String requestBody = request.content().toString(CharsetUtil.UTF_8);
         log.info("Received request body: " + requestBody);
@@ -265,10 +266,11 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
 
 
 
-    public DefaultRequestHandler(Validator validator, BlockingQueueFactory blockingQueueFactory, String dispatcherKey, String defaultTopic, String keyHeader, String keyJSONPath, boolean inferSchema) {
+    public DefaultRequestHandler(Validator validator, BlockingQueueFactory blockingQueueFactory, String dispatcherKey, String topicPrefix, String defaultTopic, String keyHeader, String keyJSONPath, boolean inferSchema) {
         this.validator = validator;
         this.blockingQueueFactory = blockingQueueFactory;
         this.dispatcherKey = dispatcherKey;
+        this.topicPrefix = topicPrefix;
         this.defaultTopic = defaultTopic;
         this.keyHeader = keyHeader;
         this.keyJSONPath = keyJSONPath;
@@ -291,7 +293,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
         Pattern pattern = Pattern.compile(VALID_TOPIC_NAME_REGEX);
         Matcher matcher = pattern.matcher(queueName);
 
-        return matcher.replaceAll("_");
+        return topicPrefix + matcher.replaceAll("_");
     }
 
     public Object determineKey(FullHttpRequest request) {
