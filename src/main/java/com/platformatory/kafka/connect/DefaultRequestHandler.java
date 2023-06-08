@@ -212,7 +212,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
 
     private Map.Entry<HttpResponseStatus, String> handleWebhookRequest(FullHttpRequest request) {
         topic = extractQueueName(request);
-        topic = topic == null ? topicPrefix + defaultTopic : topicPrefix + topic;
+        topic = topic == null ? topicPrefix + defaultTopic : topic;
         // Process the incoming request
         String requestBody = request.content().toString(CharsetUtil.UTF_8);
         log.info("Received request body: " + requestBody);
