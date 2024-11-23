@@ -24,6 +24,7 @@ import java.util.AbstractMap;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -51,6 +52,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
     private final String keyHeader;
     private final String keyJSONPath;
     private final boolean inferSchema;
+    private final boolean sourceFromQueryParams;
     private Map<String, Function<FullHttpRequest, Map.Entry<HttpResponseStatus, String>>> routes;
     StringBuilder responseData = new StringBuilder();
 
@@ -156,7 +158,10 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
         String uri = request.uri();
-        Function<FullHttpRequest, Map.Entry<HttpResponseStatus, String>> handler = routes.get(uri);
+        QueryStringDecoder queryStringDecoder = new QueryStringDecoder(request.uri());
+        String path = queryStringDecoder.path();
+        log.info("Path - "+ path);
+        Function<FullHttpRequest, Map.Entry<HttpResponseStatus, String>> handler = routes.get(path);
         if (handler != null) {
             Map.Entry<HttpResponseStatus, String> responseContent = handler.apply(request);
             sendHttpResponse(ctx, request, responseContent.getKey(), responseContent.getValue());
@@ -223,6 +228,16 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
                 Map<String, ?> sourcePartition = new HashMap<>();
                 Map<String, ?> sourceOffset = new HashMap<>();
                 BlockingQueue<SourceRecord> queue = blockingQueueFactory.getOrCreateQueue(topic);
+                if(sourceFromQueryParams) {
+                    QueryStringDecoder queryStringDecoder = new QueryStringDecoder(request.uri());
+                    Map<String, List<String>> parameters = queryStringDecoder.parameters();
+                    Map<String, String> queryParams = new HashMap<>();
+                    parameters.forEach((key, value) -> {
+                        queryParams.put(key, value.get(0));
+                    });
+                    requestBody = mapper.writeValueAsString(queryParams);
+                    log.info("Received request body: " + requestBody);
+                }
                 if(inferSchema) {
                     jsonNodeObject = mapper.readTree(requestBody);
                     final JsonSchemaInferrer inferrer = JsonSchemaInferrer.newBuilder()
@@ -238,10 +253,10 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
                     Schema outputSchema = convertJsonSchemaToKafkaConnectSchema(inferrer.inferForSample(jsonNodeObject));
                     log.info("Schema - {}", outputSchema.schema().toString());
                     Struct outputStruct = convertJsonToKafkaConnectStruct(jsonNodeObject, outputSchema);
-                    queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, determineKey(request), outputSchema, outputStruct));
+                    queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, determineKey(requestBody, request), outputSchema, outputStruct));
                 } else {
                     jsonObject = mapper.readValue(requestBody, Object.class);
-                    queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, determineKey(request), null, jsonObject));
+                    queue.add(new SourceRecord(sourcePartition, sourceOffset, topic, null, determineKey(requestBody, request), null, jsonObject));
                 }
                 return new AbstractMap.SimpleImmutableEntry <>(
                         HttpResponseStatus.OK,
@@ -266,7 +281,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
 
 
 
-    public DefaultRequestHandler(Validator validator, BlockingQueueFactory blockingQueueFactory, String dispatcherKey, String topicPrefix, String defaultTopic, String keyHeader, String keyJSONPath, boolean inferSchema) {
+    public DefaultRequestHandler(Validator validator, BlockingQueueFactory blockingQueueFactory, String dispatcherKey, String topicPrefix, String defaultTopic, String keyHeader, String keyJSONPath, boolean inferSchema, boolean sourceFromQueryParams) {
         this.validator = validator;
         this.blockingQueueFactory = blockingQueueFactory;
         this.dispatcherKey = dispatcherKey;
@@ -275,6 +290,7 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
         this.keyHeader = keyHeader;
         this.keyJSONPath = keyJSONPath;
         this.inferSchema = inferSchema;
+        this.sourceFromQueryParams = sourceFromQueryParams;
         this.routes = new HashMap<>();
         this.routes.put("/", this::handleWebhookRequest);
         this.routes.put("/health", this::handleHealthCheckRequest);
@@ -296,11 +312,10 @@ public class DefaultRequestHandler extends SimpleChannelInboundHandler<FullHttpR
         return topicPrefix + matcher.replaceAll("_");
     }
 
-    public Object determineKey(FullHttpRequest request) {
+    public Object determineKey(String requestBody, FullHttpRequest request) {
         if (keyJSONPath != null && !keyJSONPath.isEmpty()) {
-            String requestBodyJSONString = request.content().toString(StandardCharsets.UTF_8);
             try {
-                return JsonPath.read(requestBodyJSONString, keyJSONPath);
+                return JsonPath.read(requestBody, keyJSONPath);
             } catch (PathNotFoundException e) {
                 return null;
             }

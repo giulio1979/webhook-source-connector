@@ -46,7 +46,6 @@ public class SchemaUtil {
 
 
     public static Schema convertJsonSchemaToKafkaConnectSchema(JsonNode jsonSchema) {
-        log.info("JSONSchema - {}", jsonSchema);
         // Initialize a new SchemaBuilder based on the type
         SchemaBuilder schemaBuilder;
         if(jsonSchema != null) {
@@ -58,7 +57,7 @@ public class SchemaUtil {
                     schemaBuilder = SchemaBuilder.bool();
                     break;
                 case "integer":
-                    schemaBuilder = SchemaBuilder.int32();
+                    schemaBuilder = SchemaBuilder.int64();
                     break;
                 case "number":
                     schemaBuilder = SchemaBuilder.float64();
